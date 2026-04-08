@@ -1,0 +1,21 @@
+/* Conflict row highlighting */
+tr.uchi-conflict {
+  background-color: #fff3f3 !important;
+}
+
+tr.uchi-conflict td {
+  text-decoration: line-through;
+  text-decoration-color: #c62828;
+  opacity: 0.7;
+}
+
+/* Don't strike through the actions column */
+tr.uchi-conflict td:last-child {
+  text-decoration: none;
+  opacity: 1;
+}
+
+/* Conflict tooltip */
+tr.uchi-conflict td:first-child {
+  position: relative;
+}
