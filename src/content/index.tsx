@@ -1,6 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { scrapeCourseRow, getCourseRows } from "./scraper";
+import {
+  scrapeCourseRow,
+  getCourseRows,
+  scrapeCourseDetailPage,
+} from "./scraper";
 import { CourseActions } from "./components/CourseActions";
 import { getActiveSchedule, onStorageChange } from "@/shared/storage";
 import { courseConflictsWithSaved } from "@/shared/utils";
@@ -45,11 +49,45 @@ function injectCalendarButtons() {
   }
 }
 
-async function init() {
-  const table = document.querySelector(".table-container table");
-  if (!table) return;
+async function mountDetailPageActions() {
+  const course = scrapeCourseDetailPage();
+  const heading = document.querySelector("h1");
+  if (!course || !heading) return false;
+  const detailCourse = course;
+  if (document.querySelector(".uchi-course-detail-actions")) return true;
 
-  injectCalendarButtons();
+  const mountPoint = document.createElement("div");
+  mountPoint.className = "uchi-course-detail-actions";
+  mountPoint.style.margin = "12px 0 20px";
+  heading.insertAdjacentElement("afterend", mountPoint);
+
+  const root = createRoot(mountPoint);
+
+  async function render() {
+    const schedule = await getActiveSchedule();
+    const isAdded = detailCourse.id in schedule.courses;
+    const conflictsWith = courseConflictsWithSaved(detailCourse, schedule.courses);
+    root.render(
+      <CourseActions
+        course={detailCourse}
+        isAdded={isAdded}
+        conflictsWith={conflictsWith}
+      />
+    );
+  }
+
+  await render();
+  onStorageChange(() => {
+    render();
+  });
+
+  return true;
+}
+
+async function mountCatalogActions(table: Element) {
+  if (table.querySelector("thead tr th:last-child")?.textContent === "UChiSchedule") {
+    return;
+  }
 
   // Add header column
   const thead = table.querySelector("thead tr");
@@ -113,6 +151,17 @@ async function init() {
   onStorageChange(() => {
     renderAll();
   });
+}
+
+async function init() {
+  injectCalendarButtons();
+
+  const table = document.querySelector(".table-container table");
+  if (table) {
+    await mountCatalogActions(table);
+  }
+
+  await mountDetailPageActions();
 }
 
 if (document.readyState === "loading") {

@@ -15,6 +15,11 @@ interface Props {
 export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
+  const openCourseDetails = (course: Course) => {
+    if (!course.detailUrl) return;
+    window.location.href = course.detailUrl;
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       {/* CSS Grid: time labels + 6 day columns */}
@@ -80,6 +85,7 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
               <div
                 key={`${course.id}-${mi}`}
                 className="rounded-md px-1.5 py-1 text-white overflow-hidden cursor-default hover:shadow-lg transition-shadow z-10"
+                onClick={() => openCourseDetails(course)}
                 style={{
                   gridColumn: dayIdx + 2,
                   gridRow: `${Math.floor(startH - START_HOUR) + 2} / ${Math.ceil(endH - START_HOUR) + 2}`,
@@ -90,7 +96,9 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
                   opacity: isConflict ? 0.68 : 0.92,
                   border: isConflict ? "2px solid #d32f2f" : "none",
                   boxShadow: isConflict ? "0 0 0 1px #d32f2f" : "none",
+                  cursor: course.detailUrl ? "pointer" : "default",
                 }}
+                title={course.detailUrl ? "Open full course details" : undefined}
               >
                 <div className="text-[10px] font-bold opacity-90">{course.code}</div>
                 <div className="text-[11px] font-semibold leading-tight">{course.name}</div>
