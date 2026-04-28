@@ -1,11 +1,11 @@
 import type { Course, CourseMeeting, Conflict } from "./types";
 
-// Convert time string like "5:30pm" to decimal hours (17.5)
+// Convert time string like "5:30pm" or "6pm" to decimal hours (17.5 / 18)
 export function timeToHours(timeStr: string): number | null {
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
+  const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
   if (!match) return null;
   let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
+  const minutes = match[2] ? parseInt(match[2]) : 0;
   const period = match[3].toLowerCase();
   if (period === "pm" && hours !== 12) hours += 12;
   if (period === "am" && hours === 12) hours = 0;
@@ -25,7 +25,7 @@ export function formatHour(h: number): string {
   return `${display} ${period}`;
 }
 
-// Parse meeting time text: "Monday 5:30pm - 8:30pm"
+// Parse meeting time text like "Monday 5:30pm - 8:30pm" or "Monday 6pm - 8pm"
 export function parseMeetingTime(text: string): CourseMeeting[] {
   const lines = text
     .split(/\n|<br\s*\/?>/)
@@ -33,7 +33,7 @@ export function parseMeetingTime(text: string): CourseMeeting[] {
     .filter(Boolean);
   return lines.map((line) => {
     const match = line.match(
-      /^(\w+)\s+(\d{1,2}:\d{2}(?:am|pm))\s*[-–]\s*(\d{1,2}:\d{2}(?:am|pm))$/i
+      /^(\w+)\s+(\d{1,2}(?::\d{2})?(?:am|pm))\s*[-–]\s*(\d{1,2}(?::\d{2})?(?:am|pm))$/i
     );
     if (!match) return { day: "", start: "", end: "", raw: line };
     return { day: match[1], start: match[2], end: match[3] };
