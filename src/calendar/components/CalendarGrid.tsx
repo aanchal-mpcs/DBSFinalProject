@@ -12,6 +12,18 @@ interface Props {
   conflictIds: Set<string>;
 }
 
+interface MeetingLayout {
+  key: string;
+  course: Course;
+  dayIdx: number;
+  startH: number;
+  endH: number;
+  layoutIndex: number;
+  layoutCount: number;
+  meetingLabel: string;
+  location: string;
+}
+
 export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
@@ -19,6 +31,58 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
     if (!course.detailUrl) return;
     window.location.href = course.detailUrl;
   };
+
+  const dayLayouts: MeetingLayout[][] = DAYS.map(() => []);
+
+  courses.forEach((course) => {
+    course.meetings.forEach((meeting, mi) => {
+      if (!meeting.day || !meeting.start || !meeting.end) return;
+
+      const startH = timeToHours(meeting.start);
+      const endH = timeToHours(meeting.end);
+      if (startH == null || endH == null) return;
+
+      const dayIdx = DAYS.indexOf(meeting.day);
+      if (dayIdx === -1) return;
+
+      dayLayouts[dayIdx].push({
+        key: `${course.id}-${mi}`,
+        course,
+        dayIdx,
+        startH,
+        endH,
+        layoutIndex: 0,
+        layoutCount: 1,
+        meetingLabel: `${meeting.start} - ${meeting.end}`,
+        location: course.location,
+      });
+    });
+  });
+
+  dayLayouts.forEach((entries) => {
+    entries.sort((a, b) => a.startH - b.startH || a.endH - b.endH);
+
+    const active: MeetingLayout[] = [];
+
+    entries.forEach((entry) => {
+      for (let i = active.length - 1; i >= 0; i--) {
+        if (active[i].endH <= entry.startH) {
+          active.splice(i, 1);
+        }
+      }
+
+      const usedColumns = new Set(active.map((item) => item.layoutIndex));
+      let column = 0;
+      while (usedColumns.has(column)) column += 1;
+      entry.layoutIndex = column;
+
+      active.push(entry);
+      const columnCount = Math.max(...active.map((item) => item.layoutIndex)) + 1;
+      active.forEach((item) => {
+        item.layoutCount = Math.max(item.layoutCount, columnCount);
+      });
+    });
+  });
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -67,23 +131,16 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
         ))}
 
         {/* Course blocks overlaid */}
-        {courses.map((course) =>
-          course.meetings.map((meeting, mi) => {
-            if (!meeting.day || !meeting.start || !meeting.end) return null;
-
-            const startH = timeToHours(meeting.start);
-            const endH = timeToHours(meeting.end);
-            if (startH == null || endH == null) return null;
-
-            const dayIdx = DAYS.indexOf(meeting.day);
-            if (dayIdx === -1) return null;
-
+        {dayLayouts.flat().map((entry) => {
+            const { course, dayIdx, startH, endH, layoutIndex, layoutCount } = entry;
             const height = (endH - startH) * SLOT_HEIGHT;
             const isConflict = conflictIds.has(course.id);
+            const widthPercent = 100 / layoutCount;
+            const leftPercent = layoutIndex * widthPercent;
 
             return (
               <div
-                key={`${course.id}-${mi}`}
+                key={entry.key}
                 className="rounded-md px-1.5 py-1 text-white overflow-hidden cursor-default hover:shadow-lg transition-shadow z-10"
                 onClick={() => openCourseDetails(course)}
                 style={{
@@ -93,6 +150,8 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
                   marginTop: `${((startH - START_HOUR) % 1) * SLOT_HEIGHT}px`,
                   height: `${height}px`,
                   position: "relative",
+                  width: `calc(${widthPercent}% - 4px)`,
+                  marginLeft: `calc(${leftPercent}% + 2px)`,
                   opacity: isConflict ? 0.68 : 0.92,
                   border: isConflict ? "2px solid #d32f2f" : "none",
                   boxShadow: isConflict ? "0 0 0 1px #d32f2f" : "none",
@@ -103,13 +162,12 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
                 <div className="text-[10px] font-bold opacity-90">{course.code}</div>
                 <div className="text-[11px] font-semibold leading-tight">{course.name}</div>
                 <div className="text-[10px] opacity-80 mt-0.5">
-                  {meeting.start} - {meeting.end}
+                  {entry.meetingLabel}
                 </div>
-                <div className="text-[10px] opacity-70">{course.location}</div>
+                <div className="text-[10px] opacity-70">{entry.location}</div>
               </div>
             );
-          })
-        )}
+          })}
       </div>
     </div>
   );
