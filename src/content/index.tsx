@@ -50,118 +50,127 @@ function injectCalendarButtons() {
 }
 
 async function mountDetailPageActions() {
-  const course = scrapeCourseDetailPage();
-  const heading = document.querySelector("h1");
-  if (!course || !heading) return false;
-  const detailCourse = course;
-  if (document.querySelector(".uchi-course-detail-actions")) return true;
+  try {
+    const course = scrapeCourseDetailPage();
+    const heading = document.querySelector("h1");
+    if (!course || !heading) return false;
+    const detailCourse = course;
+    if (document.querySelector(".uchi-course-detail-actions")) return true;
 
-  const mountPoint = document.createElement("div");
-  mountPoint.className = "uchi-course-detail-actions";
-  mountPoint.style.margin = "12px 0 20px";
-  heading.insertAdjacentElement("afterend", mountPoint);
+    const mountPoint = document.createElement("div");
+    mountPoint.className = "uchi-course-detail-actions";
+    mountPoint.style.margin = "12px 0 20px";
+    heading.insertAdjacentElement("afterend", mountPoint);
 
-  const root = createRoot(mountPoint);
+    const root = createRoot(mountPoint);
 
-  async function render() {
-    const schedule = await getActiveSchedule();
-    const isAdded = detailCourse.id in schedule.courses;
-    const conflictsWith = courseConflictsWithSaved(detailCourse, schedule.courses);
-    root.render(
-      <CourseActions
-        course={detailCourse}
-        isAdded={isAdded}
-        conflictsWith={conflictsWith}
-      />
-    );
-  }
-
-  await render();
-  onStorageChange(() => {
-    render();
-  });
-
-  return true;
-}
-
-async function mountCatalogActions(table: Element) {
-  if (table.querySelector("thead tr th:last-child")?.textContent === "UChiSchedule") {
-    return;
-  }
-
-  // Add header column
-  const thead = table.querySelector("thead tr");
-  if (thead) {
-    const th = document.createElement("th");
-    th.textContent = "UChiSchedule";
-    th.style.fontSize = "11px";
-    th.style.fontWeight = "600";
-    th.style.color = "#800000";
-    th.style.minWidth = "200px";
-    thead.appendChild(th);
-  }
-
-  const rows = getCourseRows();
-  const rowStates: RowState[] = [];
-
-  // Create mount points for each row
-  for (const row of rows) {
-    const course = scrapeCourseRow(row);
-    if (!course) continue;
-
-    const td = document.createElement("td");
-    td.style.verticalAlign = "top";
-    td.style.padding = "4px";
-    row.appendChild(td);
-
-    const root = createRoot(td);
-    rowStates.push({ course, row, mountPoint: td, root });
-  }
-
-  // Render function that updates all rows based on current saved courses
-  async function renderAll() {
-    const schedule = await getActiveSchedule();
-    const savedCourses = schedule.courses;
-
-    for (const state of rowStates) {
-      const isAdded = state.course.id in savedCourses;
-      const conflictsWith = courseConflictsWithSaved(state.course, savedCourses);
-
-      // Update row highlighting for conflicts
-      if (conflictsWith.length > 0 && !isAdded) {
-        state.row.classList.add("uchi-conflict");
-      } else {
-        state.row.classList.remove("uchi-conflict");
-      }
-
-      state.root.render(
+    async function render() {
+      const schedule = await getActiveSchedule();
+      const isAdded = detailCourse.id in schedule.courses;
+      const conflictsWith = courseConflictsWithSaved(detailCourse, schedule.courses);
+      root.render(
         <CourseActions
-          course={state.course}
+          course={detailCourse}
           isAdded={isAdded}
           conflictsWith={conflictsWith}
         />
       );
     }
+
+    await render();
+    onStorageChange(() => {
+      render();
+    });
+
+    return true;
+  } catch (error) {
+    console.error("UChiSchedule failed to mount detail page actions", error);
+    return false;
   }
+}
 
-  // Initial render
-  await renderAll();
+async function mountCatalogActions(table: Element) {
+  try {
+    if (table.querySelector("thead tr th:last-child")?.textContent === "UChiSchedule") {
+      return;
+    }
 
-  // Re-render when storage changes (e.g., course added/removed from popup or calendar)
-  onStorageChange(() => {
-    renderAll();
-  });
+    // Add header column
+    const thead = table.querySelector("thead tr");
+    if (thead) {
+      const th = document.createElement("th");
+      th.textContent = "UChiSchedule";
+      th.style.fontSize = "11px";
+      th.style.fontWeight = "600";
+      th.style.color = "#800000";
+      th.style.minWidth = "200px";
+      thead.appendChild(th);
+    }
+
+    const rows = getCourseRows();
+    const rowStates: RowState[] = [];
+
+    // Create mount points for each row
+    for (const row of rows) {
+      const course = scrapeCourseRow(row);
+      if (!course) continue;
+
+      const td = document.createElement("td");
+      td.style.verticalAlign = "top";
+      td.style.padding = "4px";
+      row.appendChild(td);
+
+      const root = createRoot(td);
+      rowStates.push({ course, row, mountPoint: td, root });
+    }
+
+    // Render function that updates all rows based on current saved courses
+    async function renderAll() {
+      const schedule = await getActiveSchedule();
+      const savedCourses = schedule.courses;
+
+      for (const state of rowStates) {
+        const isAdded = state.course.id in savedCourses;
+        const conflictsWith = courseConflictsWithSaved(state.course, savedCourses);
+
+        if (conflictsWith.length > 0 && !isAdded) {
+          state.row.classList.add("uchi-conflict");
+        } else {
+          state.row.classList.remove("uchi-conflict");
+        }
+
+        state.root.render(
+          <CourseActions
+            course={state.course}
+            isAdded={isAdded}
+            conflictsWith={conflictsWith}
+          />
+        );
+      }
+    }
+
+    await renderAll();
+    onStorageChange(() => {
+      renderAll();
+    });
+  } catch (error) {
+    console.error("UChiSchedule failed to mount catalog actions", error);
+  }
 }
 
 async function init() {
-  injectCalendarButtons();
+  try {
+    injectCalendarButtons();
 
-  const table = document.querySelector(".table-container table");
-  if (table) {
-    await mountCatalogActions(table);
+    const table = document.querySelector(".table-container table");
+    if (table) {
+      await mountCatalogActions(table);
+    }
+
+    await mountDetailPageActions();
+  } catch (error) {
+    console.error("UChiSchedule content script initialization failed", error);
   }
-
-  await mountDetailPageActions();
 }
 
 if (document.readyState === "loading") {

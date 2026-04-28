@@ -1,4 +1,5 @@
 import type { Course, CourseMeeting, Conflict } from "./types";
+import { QUARTER_DATE_RANGES } from "./quarterDates";
 
 // Convert time string like "5:30pm" or "6pm" to decimal hours (17.5 / 18)
 export function timeToHours(timeStr: string): number | null {
@@ -118,6 +119,59 @@ export const COURSE_COLORS = [
   "#00695c", // dark teal
 ];
 
+function formatICSDateLocal(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const seconds = String(d.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+}
+
+function quarterKey(course: Course): string | null {
+  if (!course.term || !course.year) return null;
+  return `${course.term}-${course.year}`;
+}
+
+function getQuarterDateRange(course: Course): { start: Date; end: Date } | null {
+  const key = quarterKey(course);
+  if (!key) return null;
+  const range = QUARTER_DATE_RANGES[key];
+  if (!range) return null;
+  return {
+    start: new Date(`${range.start}T00:00:00`),
+    end: new Date(`${range.end}T23:59:59`),
+  };
+}
+
+function getFallbackWeekRange(): { start: Date; end: Date } {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + daysUntilMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 0);
+
+  return { start: monday, end: sunday };
+}
+
+function firstMeetingDateForRange(
+  rangeStart: Date,
+  dayOffset: number
+): Date {
+  const first = new Date(rangeStart);
+  const currentDay = first.getDay();
+  const targetDay = dayOffset === 6 ? 0 : dayOffset + 1;
+  const offset = (targetDay - currentDay + 7) % 7;
+  first.setDate(first.getDate() + offset);
+  return first;
+}
+
 // Generate ICS file content from courses
 export function generateICS(courses: Record<string, Course>): string {
   const lines = [
@@ -126,13 +180,6 @@ export function generateICS(courses: Record<string, Course>): string {
     "PRODID:-//UChiSchedule//EN",
     "CALSCALE:GREGORIAN",
   ];
-
-  // Use next Monday as reference date for the schedule
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + daysUntilMonday);
 
   const dayOffsets: Record<string, number> = {
     Monday: 0,
@@ -154,20 +201,18 @@ export function generateICS(courses: Record<string, Course>): string {
       const endH = timeToHours(meeting.end);
       if (startH == null || endH == null) continue;
 
-      const eventDate = new Date(monday);
-      eventDate.setDate(monday.getDate() + offset);
+      const quarterRange = getQuarterDateRange(course) ?? getFallbackWeekRange();
+      const eventDate = firstMeetingDateForRange(quarterRange.start, offset);
 
       const startDate = new Date(eventDate);
       startDate.setHours(Math.floor(startH), Math.round((startH % 1) * 60), 0);
       const endDate = new Date(eventDate);
       endDate.setHours(Math.floor(endH), Math.round((endH % 1) * 60), 0);
 
-      const fmt = (d: Date) =>
-        d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-
       lines.push("BEGIN:VEVENT");
-      lines.push(`DTSTART:${fmt(startDate)}`);
-      lines.push(`DTEND:${fmt(endDate)}`);
+      lines.push(`DTSTART:${formatICSDateLocal(startDate)}`);
+      lines.push(`DTEND:${formatICSDateLocal(endDate)}`);
+      lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${formatICSDateLocal(quarterRange.end)}`);
       lines.push(`SUMMARY:${course.code} - ${course.name}`);
       lines.push(`LOCATION:${course.location}`);
       lines.push(`DESCRIPTION:Instructor: ${course.instructor}`);

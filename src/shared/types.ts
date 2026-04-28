@@ -14,6 +14,8 @@ export interface Course {
   meetingText: string;
   meetings: CourseMeeting[];
   detailUrl: string | null;
+  term?: "Spring" | "Summer" | "Autumn" | "Winter";
+  year?: number;
   color?: number;
 }
 

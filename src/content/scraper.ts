@@ -1,6 +1,29 @@
 import type { Course } from "@/shared/types";
 import { parseMeetingTime } from "@/shared/utils";
 
+function inferCurrentTermFromPage(): {
+  term?: Course["term"];
+  year?: number;
+} {
+  const textCandidates = Array.from(
+    document.querySelectorAll<HTMLElement>("h1, h2, h3, h4, .page-title, .title")
+  )
+    .map((node) => node.textContent?.trim() ?? "")
+    .filter(Boolean);
+
+  for (const text of textCandidates) {
+    const match = text.match(/\b(Spring|Summer|Autumn|Winter)\s+(\d{4})\b/i);
+    if (match) {
+      return {
+        term: match[1] as Course["term"],
+        year: parseInt(match[2], 10),
+      };
+    }
+  }
+
+  return {};
+}
+
 // Scrape course data from an MPCS catalog table row
 export function scrapeCourseRow(row: HTMLTableRowElement): Course | null {
   const cells = row.querySelectorAll("td");
@@ -14,6 +37,7 @@ export function scrapeCourseRow(row: HTMLTableRowElement): Course | null {
   const location = cells[3].textContent?.trim() ?? "";
   const meetingText = cells[4].textContent?.trim() ?? "";
   const meetings = parseMeetingTime(meetingText);
+  const { term, year } = inferCurrentTermFromPage();
 
   if (!code) return null;
 
@@ -28,6 +52,8 @@ export function scrapeCourseRow(row: HTMLTableRowElement): Course | null {
     detailUrl: detailPath
       ? `${window.location.origin}${detailPath}`
       : null,
+    term,
+    year,
   };
 }
 
@@ -89,11 +115,17 @@ export function scrapeCourseDetailPage(): Course | null {
   const baseCode = titleMatch[1];
   const sectionFromTitle = titleMatch[2];
   const name = titleMatch[3].trim();
+  const titleTerm = titleMatch[4]
+    ? (titleMatch[4] as Course["term"])
+    : undefined;
   const section = sectionFromTitle || findLabeledValue(["section"]);
   const code = section ? `${baseCode}-${section}` : baseCode;
   const instructor = findLabeledValue(["instructor(s)", "instructors"]);
   const location = findLabeledValue(["location"]);
   const meetingText = findLabeledValue(["meeting times"]);
+  const inferredTerm = inferCurrentTermFromPage();
+  const yearMatch = title.match(/\b(Spring|Summer|Autumn|Winter)\s+(\d{4})\b/i);
+  const year = yearMatch ? parseInt(yearMatch[2], 10) : inferredTerm.year;
 
   return {
     id: code.replace(/\s+/g, "-"),
@@ -104,5 +136,7 @@ export function scrapeCourseDetailPage(): Course | null {
     meetingText,
     meetings: parseMeetingTime(meetingText),
     detailUrl: window.location.href,
+    term: titleTerm || inferredTerm.term,
+    year,
   };
 }
