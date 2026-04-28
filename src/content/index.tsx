@@ -13,9 +13,43 @@ interface RowState {
   root: ReturnType<typeof createRoot>;
 }
 
+function injectCalendarButtons() {
+  const semesterPattern = /\b(Spring|Summer|Autumn|Winter)\s+\d{4}\b/i;
+  const headings = document.querySelectorAll<HTMLElement>(
+    "h1, h2, h3, h4, .page-title, .title"
+  );
+
+  for (const heading of headings) {
+    if (!semesterPattern.test(heading.textContent?.trim() ?? "")) continue;
+    if (heading.parentElement?.querySelector(".uchi-see-calendar-btn")) continue;
+
+    const button = document.createElement("button");
+    button.textContent = "See My Calendar";
+    button.className = "uchi-see-calendar-btn";
+    button.style.marginLeft = "10px";
+    button.style.padding = "6px 12px";
+    button.style.border = "none";
+    button.style.borderRadius = "6px";
+    button.style.background = "#800000";
+    button.style.color = "#fff";
+    button.style.fontSize = "12px";
+    button.style.fontWeight = "600";
+    button.style.cursor = "pointer";
+    button.style.verticalAlign = "middle";
+
+    button.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "OPEN_CALENDAR" });
+    });
+
+    heading.insertAdjacentElement("afterend", button);
+  }
+}
+
 async function init() {
   const table = document.querySelector(".table-container table");
   if (!table) return;
+
+  injectCalendarButtons();
 
   // Add header column
   const thead = table.querySelector("thead tr");
