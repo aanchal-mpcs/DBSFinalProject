@@ -73,10 +73,7 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
             const dayIdx = DAYS.indexOf(meeting.day);
             if (dayIdx === -1) return null;
 
-            const topOffset = (startH - START_HOUR) * SLOT_HEIGHT + 40; // 40px header
             const height = (endH - startH) * SLOT_HEIGHT;
-            const left = 60 + dayIdx * ((100 - 60 / window.innerWidth * 100) / DAYS.length);
-
             const isConflict = conflictIds.has(course.id);
 
             return (
@@ -90,6 +87,7 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
                   marginTop: `${((startH - START_HOUR) % 1) * SLOT_HEIGHT}px`,
                   height: `${height}px`,
                   position: "relative",
+                  opacity: isConflict ? 0.68 : 0.92,
                   border: isConflict ? "2px solid #d32f2f" : "none",
                   boxShadow: isConflict ? "0 0 0 1px #d32f2f" : "none",
                 }}
