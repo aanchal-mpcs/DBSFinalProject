@@ -1,5 +1,5 @@
 // UChiSchedule background service worker
-// Handles opening the calendar tab and message passing
+// Handles opening the calendar tab
 
 chrome.action.onClicked.addListener(() => {
   // Open popup by default (handled by manifest action.default_popup)

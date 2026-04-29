@@ -137,6 +137,7 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
             const isConflict = conflictIds.has(course.id);
             const widthPercent = 100 / layoutCount;
             const leftPercent = layoutIndex * widthPercent;
+            const baseColor = colorMap[course.id] || "#666";
 
             return (
               <div
@@ -146,15 +147,20 @@ export function CalendarGrid({ courses, colorMap, conflictIds }: Props) {
                 style={{
                   gridColumn: dayIdx + 2,
                   gridRow: `${Math.floor(startH - START_HOUR) + 2} / ${Math.ceil(endH - START_HOUR) + 2}`,
-                  background: colorMap[course.id] || "#666",
+                  backgroundColor: baseColor,
+                  backgroundImage: isConflict
+                    ? "repeating-linear-gradient(135deg, rgba(75,85,99,0.6) 0px, rgba(75,85,99,0.6) 8px, rgba(255,255,255,0.06) 8px, rgba(255,255,255,0.06) 16px)"
+                    : "none",
                   marginTop: `${((startH - START_HOUR) % 1) * SLOT_HEIGHT}px`,
                   height: `${height}px`,
                   position: "relative",
                   width: `calc(${widthPercent}% - 4px)`,
                   marginLeft: `calc(${leftPercent}% + 2px)`,
-                  opacity: isConflict ? 0.68 : 0.92,
-                  border: isConflict ? "2px solid #d32f2f" : "none",
-                  boxShadow: isConflict ? "0 0 0 1px #d32f2f" : "none",
+                  opacity: isConflict ? 0.56 : 0.92,
+                  border: isConflict ? "1px solid rgba(107,114,128,0.6)" : "none",
+                  boxShadow: isConflict
+                    ? "inset 0 0 0 1px rgba(255,255,255,0.18)"
+                    : "none",
                   cursor: course.detailUrl ? "pointer" : "default",
                 }}
                 title={course.detailUrl ? "Open full course details" : undefined}

@@ -8,7 +8,7 @@ import {
   deleteSchedule,
   onStorageChange,
 } from "@/shared/storage";
-import { findConflicts, COURSE_COLORS } from "@/shared/utils";
+import { findConflicts, COURSE_COLORS, UCHICAGO_REGISTRATION_URL } from "@/shared/utils";
 
 export function PopupApp() {
   const [data, setData] = useState<StorageData | null>(null);
@@ -176,12 +176,12 @@ export function PopupApp() {
       {courses.length > 0 && (
         <div className="px-4 py-3 border-t bg-gray-50 flex gap-2">
           <a
-            href="https://my.uchicago.edu"
+            href={UCHICAGO_REGISTRATION_URL}
             target="_blank"
             rel="noopener"
             className="flex-1 text-center text-xs bg-maroon text-white py-2 rounded font-semibold no-underline hover:bg-maroon-800"
           >
-            Register on my.UChicago
+            Register
           </a>
           <button
             onClick={handleOpenCalendar}

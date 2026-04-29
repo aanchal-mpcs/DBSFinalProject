@@ -1,4 +1,5 @@
 import type { Course, Conflict } from "@/shared/types";
+import { getCourseFeedbackUrl, UCHICAGO_REGISTRATION_URL } from "@/shared/utils";
 
 interface Props {
   courses: Course[];
@@ -49,6 +50,34 @@ export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
                   </div>
                   <div className="text-xs text-gray-400">
                     {course.meetingText} &middot; {course.location}
+                  </div>
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    <a
+                      href={getCourseFeedbackUrl(course)}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-[11px] bg-gray-600 text-white px-2.5 py-1 rounded font-semibold no-underline hover:bg-gray-700"
+                    >
+                      Feedback
+                    </a>
+                    <a
+                      href={UCHICAGO_REGISTRATION_URL}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-[11px] bg-teal-700 text-white px-2.5 py-1 rounded font-semibold no-underline hover:bg-teal-800"
+                    >
+                      Register
+                    </a>
+                    {course.detailUrl && (
+                      <a
+                        href={course.detailUrl}
+                        target="_blank"
+                        rel="noopener"
+                        className="text-[11px] border border-maroon text-maroon px-2.5 py-1 rounded font-semibold no-underline hover:bg-maroon-50"
+                      >
+                        Description
+                      </a>
+                    )}
                   </div>
                 </div>
                 <button

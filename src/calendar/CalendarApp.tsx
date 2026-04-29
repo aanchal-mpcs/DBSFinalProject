@@ -8,7 +8,12 @@ import {
   deleteSchedule,
   onStorageChange,
 } from "@/shared/storage";
-import { findConflicts, generateICS, COURSE_COLORS } from "@/shared/utils";
+import {
+  findConflicts,
+  generateICS,
+  COURSE_COLORS,
+  UCHICAGO_REGISTRATION_URL,
+} from "@/shared/utils";
 import { CalendarGrid } from "./components/CalendarGrid";
 import { CourseList } from "./components/CourseList";
 
@@ -113,12 +118,12 @@ export function CalendarApp() {
           )}
 
           <a
-            href="https://my.uchicago.edu"
+            href={UCHICAGO_REGISTRATION_URL}
             target="_blank"
             rel="noopener"
             className="text-sm bg-white text-maroon px-4 py-1.5 rounded font-semibold no-underline hover:bg-gray-100 transition-colors"
           >
-            Register on my.UChicago
+            Register
           </a>
         </div>
       </header>

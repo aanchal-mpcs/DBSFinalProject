@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Course } from "@/shared/types";
 import { addCourse, removeCourse } from "@/shared/storage";
-import { getRMPUrl, getCourseFeedbackUrl } from "@/shared/utils";
+import { getCourseFeedbackUrl, UCHICAGO_REGISTRATION_URL } from "@/shared/utils";
 
 interface Props {
   course: Course;
@@ -12,6 +12,10 @@ interface Props {
 export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: Props) {
   const [added, setAdded] = useState(initialAdded);
   const [showPopup, setShowPopup] = useState(false);
+
+  const handleFeedbackClick = () => {
+    window.open(getCourseFeedbackUrl(course), "_blank", "noopener");
+  };
 
   const handleToggle = async () => {
     if (added) {
@@ -62,29 +66,25 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
           Details
         </button>
 
-        {/* Quick links */}
-        {course.instructor && course.instructor !== "TBD" && course.instructor !== "Staff" && (
-          <a
-            href={getRMPUrl(course.instructor)}
-            target="_blank"
-            rel="noopener"
-            style={{
-              padding: "3px 8px",
-              borderRadius: "4px",
-              fontSize: "11px",
-              fontWeight: 600,
-              color: "#fff",
-              background: "#0055a2",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            RateMyProf
-          </a>
-        )}
+        <button
+          onClick={handleFeedbackClick}
+          style={{
+            padding: "3px 8px",
+            border: "none",
+            borderRadius: "4px",
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "#fff",
+            background: "#555",
+            whiteSpace: "nowrap",
+            cursor: "pointer",
+          }}
+        >
+          Feedback
+        </button>
 
         <a
-          href={getCourseFeedbackUrl()}
+          href={UCHICAGO_REGISTRATION_URL}
           target="_blank"
           rel="noopener"
           style={{
@@ -93,12 +93,12 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
             fontSize: "11px",
             fontWeight: 600,
             color: "#fff",
-            background: "#555",
+            background: "#0f766e",
             textDecoration: "none",
             whiteSpace: "nowrap",
           }}
         >
-          Feedback
+          Register
         </a>
 
         {course.detailUrl && (
@@ -203,27 +203,24 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
               {added ? "Remove from Calendar" : "Add to Calendar"}
             </button>
 
-            {course.instructor && course.instructor !== "TBD" && (
-              <a
-                href={getRMPUrl(course.instructor)}
-                target="_blank"
-                rel="noopener"
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "5px",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#fff",
-                  background: "#0055a2",
-                  textDecoration: "none",
-                }}
-              >
-                RateMyProfessor
-              </a>
-            )}
+            <button
+              onClick={handleFeedbackClick}
+              style={{
+                padding: "6px 12px",
+                border: "none",
+                borderRadius: "5px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#fff",
+                background: "#555",
+                cursor: "pointer",
+              }}
+            >
+              Course Feedback
+            </button>
 
             <a
-              href={getCourseFeedbackUrl()}
+              href={UCHICAGO_REGISTRATION_URL}
               target="_blank"
               rel="noopener"
               style={{
@@ -232,11 +229,11 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
                 fontSize: "12px",
                 fontWeight: 600,
                 color: "#fff",
-                background: "#555",
+                background: "#0f766e",
                 textDecoration: "none",
               }}
             >
-              Course Feedback
+              Register
             </a>
 
             {course.detailUrl && (
