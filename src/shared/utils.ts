@@ -26,6 +26,35 @@ export function inferScheduleQuarterLabel(courses: Record<string, Course>): stri
   return Array.from(quarterLabels)[0];
 }
 
+export function isGenericScheduleName(name: string): boolean {
+  return /^Schedule \d+(?: Copy)?$/.test(name.trim());
+}
+
+export function isAutoScheduleName(name: string): boolean {
+  return (
+    isGenericScheduleName(name) ||
+    /^(Spring|Summer|Autumn|Winter) \d{4}(?: Copy)?$/.test(name.trim())
+  );
+}
+
+export function deriveScheduleName(
+  courses: Record<string, Course>,
+  fallbackName: string
+): string {
+  return inferScheduleQuarterLabel(courses) ?? fallbackName;
+}
+
+export function recomputeAutoScheduleName(
+  name: string,
+  courses: Record<string, Course>,
+  fallbackName: string
+): string {
+  if (!isAutoScheduleName(name)) return name;
+
+  const suffix = name.trim().endsWith(" Copy") ? " Copy" : "";
+  return `${deriveScheduleName(courses, fallbackName)}${suffix}`;
+}
+
 // Convert time string like "5:30pm" or "6pm" to decimal hours (17.5 / 18)
 export function timeToHours(timeStr: string): number | null {
   const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
