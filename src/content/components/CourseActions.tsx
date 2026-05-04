@@ -77,7 +77,7 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
             whiteSpace: "nowrap",
           }}
         >
-          {added ? "Added" : "Add to Calendar"}
+          {added ? "Added" : "+ Calendar"}
         </button>
 
         {/* Course detail popup toggle */}

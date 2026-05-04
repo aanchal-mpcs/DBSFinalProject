@@ -28,7 +28,7 @@ function injectCalendarButtons() {
     if (heading.parentElement?.querySelector(".uchi-see-calendar-btn")) continue;
 
     const button = document.createElement("button");
-    button.textContent = "Open Calendar";
+    button.textContent = "See My Calendar";
     button.className = "uchi-see-calendar-btn";
     button.style.marginLeft = "10px";
     button.style.padding = "6px 12px";
