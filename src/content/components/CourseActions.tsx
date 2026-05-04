@@ -77,7 +77,7 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
             whiteSpace: "nowrap",
           }}
         >
-          {added ? "Added" : "+ Calendar"}
+          {added ? "Added" : "Add to Calendar"}
         </button>
 
         {/* Course detail popup toggle */}
@@ -139,11 +139,12 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
             rel="noopener"
             style={{
               padding: "3px 8px",
+              border: "1px solid #800000",
               borderRadius: "4px",
               fontSize: "11px",
               fontWeight: 600,
-              color: "#fff",
-              background: "#6b4c9a",
+              color: "#800000",
+              background: "#fff",
               textDecoration: "none",
               whiteSpace: "nowrap",
             }}
@@ -247,7 +248,7 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
                 cursor: "pointer",
               }}
             >
-              Course Feedback
+              Feedback
             </button>
 
             <button
@@ -273,15 +274,16 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
                 rel="noopener"
                 style={{
                   padding: "6px 12px",
+                  border: "1px solid #800000",
                   borderRadius: "5px",
                   fontSize: "12px",
                   fontWeight: 600,
-                  color: "#fff",
-                  background: "#6b4c9a",
+                  color: "#800000",
+                  background: "#fff",
                   textDecoration: "none",
                 }}
               >
-                Full Description
+                Description
               </a>
             )}
           </div>

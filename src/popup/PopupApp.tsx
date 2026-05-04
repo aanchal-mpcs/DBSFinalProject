@@ -199,7 +199,7 @@ export function PopupApp() {
               </a>
               <button
                 onClick={() => handleRegisterClick("empty-register")}
-                className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold hover:bg-teal-50"
+                className="text-xs bg-teal-700 text-white px-3 py-1.5 rounded font-semibold hover:bg-teal-800"
               >
                 {getRegisterLabel("empty-register")}
               </button>
@@ -310,15 +310,15 @@ export function PopupApp() {
         <div className="px-4 py-3 border-t bg-gray-50 flex gap-2">
           <button
             onClick={() => handleRegisterClick("footer-register", courses)}
-            className="flex-1 text-center text-xs bg-maroon text-white py-2 rounded font-semibold hover:bg-maroon-800"
+            className="flex-1 text-center text-xs bg-teal-700 text-white py-2 rounded font-semibold hover:bg-teal-800"
           >
             {getRegisterLabel("footer-register")}
           </button>
           <button
             onClick={handleOpenCalendar}
-            className="flex-1 text-xs border border-maroon text-maroon py-2 rounded font-semibold hover:bg-maroon-50"
+            className="flex-1 text-xs bg-maroon text-white py-2 rounded font-semibold hover:bg-maroon-800"
           >
-            View Calendar
+            Open Calendar
           </button>
         </div>
       )}

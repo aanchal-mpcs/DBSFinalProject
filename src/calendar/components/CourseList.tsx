@@ -77,7 +77,7 @@ export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
             </a>
             <button
               onClick={() => handleRegisterClick("empty-register")}
-              className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold hover:bg-teal-50"
+              className="text-xs bg-teal-700 text-white px-3 py-1.5 rounded font-semibold hover:bg-teal-800"
             >
               {getRegisterLabel("empty-register")}
             </button>
