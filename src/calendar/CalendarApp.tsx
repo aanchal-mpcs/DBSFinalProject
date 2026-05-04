@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StorageData } from "@/shared/types";
 import {
   getData,
@@ -6,23 +6,36 @@ import {
   switchSchedule,
   createSchedule,
   deleteSchedule,
+  renameSchedule,
+  duplicateSchedule,
   onStorageChange,
 } from "@/shared/storage";
 import {
   findConflicts,
   generateICS,
   COURSE_COLORS,
-  UCHICAGO_REGISTRATION_URL,
+  getRegistrationFeedbackLabel,
+  runRegistrationHandoff,
 } from "@/shared/utils";
 import { CalendarGrid } from "./components/CalendarGrid";
 import { CourseList } from "./components/CourseList";
 
 export function CalendarApp() {
   const [data, setData] = useState<StorageData | null>(null);
+  const [registerFeedback, setRegisterFeedback] = useState<string | null>(null);
+  const registerFeedbackTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     getData().then(setData);
     return onStorageChange(setData);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (registerFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(registerFeedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   if (!data) return null;
@@ -62,6 +75,31 @@ export function CalendarApp() {
     await deleteSchedule(index);
   };
 
+  const handleRenameSchedule = async () => {
+    const nextName = window.prompt("Rename this schedule", schedule.name)?.trim();
+    if (!nextName) return;
+    await renameSchedule(data.activeScheduleIndex, nextName);
+  };
+
+  const handleDuplicateSchedule = async () => {
+    await duplicateSchedule(data.activeScheduleIndex);
+  };
+
+  const handleRegisterClick = async () => {
+    const { copied } = await runRegistrationHandoff(courseList);
+    const label = copied ? getRegistrationFeedbackLabel(courseList) : "Opened Registration";
+    setRegisterFeedback(label);
+
+    if (registerFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(registerFeedbackTimeoutRef.current);
+    }
+
+    registerFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setRegisterFeedback(null);
+      registerFeedbackTimeoutRef.current = null;
+    }, 1600);
+  };
+
   // Assign colors to courses
   const colorMap: Record<string, string> = {};
   courseList.forEach((c, i) => {
@@ -76,7 +114,7 @@ export function CalendarApp() {
           <h1 className="text-xl font-bold tracking-tight">UChiSchedule</h1>
           <span className="text-sm opacity-80">Weekly Planner</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap justify-end">
           {/* Schedule selector */}
           <select
             value={data.activeScheduleIndex}
@@ -93,7 +131,19 @@ export function CalendarApp() {
             onClick={handleNewSchedule}
             className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded font-semibold transition-colors"
           >
-            + New
+            New
+          </button>
+          <button
+            onClick={handleRenameSchedule}
+            className="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded font-semibold transition-colors"
+          >
+            Rename
+          </button>
+          <button
+            onClick={handleDuplicateSchedule}
+            className="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded font-semibold transition-colors"
+          >
+            Duplicate
           </button>
           {data.schedules.length > 1 && (
             <button
@@ -117,14 +167,12 @@ export function CalendarApp() {
             </button>
           )}
 
-          <a
-            href={UCHICAGO_REGISTRATION_URL}
-            target="_blank"
-            rel="noopener"
-            className="text-sm bg-white text-maroon px-4 py-1.5 rounded font-semibold no-underline hover:bg-gray-100 transition-colors"
+          <button
+            onClick={handleRegisterClick}
+            className="text-sm bg-white text-maroon px-4 py-1.5 rounded font-semibold hover:bg-gray-100 transition-colors"
           >
-            Register
-          </a>
+            {registerFeedback ?? "Register"}
+          </button>
         </div>
       </header>
 

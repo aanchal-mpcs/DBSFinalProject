@@ -4,6 +4,57 @@ import { QUARTER_DATE_RANGES } from "./quarterDates";
 export const UCHICAGO_REGISTRATION_URL =
   "https://coursesearch92.ais.uchicago.edu/psc/prd92guest/EMPLOYEE/HRMS/c/UC_STUDENT_RECORDS_FL.UC_CLASS_SEARCH_FL.GBL";
 
+export interface CourseCodeParts {
+  subject: string;
+  catalogNumber: string;
+  section: string | null;
+}
+
+export function getCourseQuarterLabel(course: Course): string | null {
+  if (!course.term || !course.year) return null;
+  return `${course.term} ${course.year}`;
+}
+
+export function inferScheduleQuarterLabel(courses: Record<string, Course>): string | null {
+  const quarterLabels = new Set(
+    Object.values(courses)
+      .map(getCourseQuarterLabel)
+      .filter((label): label is string => Boolean(label))
+  );
+
+  if (quarterLabels.size !== 1) return null;
+  return Array.from(quarterLabels)[0];
+}
+
+export function isGenericScheduleName(name: string): boolean {
+  return /^Schedule \d+(?: Copy)?$/.test(name.trim());
+}
+
+export function isAutoScheduleName(name: string): boolean {
+  return (
+    isGenericScheduleName(name) ||
+    /^(Spring|Summer|Autumn|Winter) \d{4}(?: Copy)?$/.test(name.trim())
+  );
+}
+
+export function deriveScheduleName(
+  courses: Record<string, Course>,
+  fallbackName: string
+): string {
+  return inferScheduleQuarterLabel(courses) ?? fallbackName;
+}
+
+export function recomputeAutoScheduleName(
+  name: string,
+  courses: Record<string, Course>,
+  fallbackName: string
+): string {
+  if (!isAutoScheduleName(name)) return name;
+
+  const suffix = name.trim().endsWith(" Copy") ? " Copy" : "";
+  return `${deriveScheduleName(courses, fallbackName)}${suffix}`;
+}
+
 // Convert time string like "5:30pm" or "6pm" to decimal hours (17.5 / 18)
 export function timeToHours(timeStr: string): number | null {
   const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
@@ -101,17 +152,83 @@ export function courseConflictsWithSaved(
 export function getCourseFeedbackUrl(course?: Course): string {
   if (!course) return "https://coursefeedback.uchicago.edu/";
 
-  const match = course.code.match(/^([A-Z]{4})\s+(\d{5})/);
-  if (!match) return "https://coursefeedback.uchicago.edu/";
+  const codeParts = parseCourseCodeParts(course.code);
+  if (!codeParts) return "https://coursefeedback.uchicago.edu/";
 
-  const subject = match[1];
-  const catalogNumber = match[2];
   const params = new URLSearchParams({
-    CourseDepartment: subject,
-    CourseNumber: catalogNumber,
+    CourseDepartment: codeParts.subject,
+    CourseNumber: codeParts.catalogNumber,
   });
 
   return `https://coursefeedback.uchicago.edu/?${params.toString()}`;
+}
+
+export function parseCourseCodeParts(courseCode: string): CourseCodeParts | null {
+  const match = courseCode.match(/^([A-Z]{4})\s+(\d{5})(?:-(.+))?$/);
+  if (!match) return null;
+
+  return {
+    subject: match[1],
+    catalogNumber: match[2],
+    section: match[3] ?? null,
+  };
+}
+
+function getRegistrationQueryText(course: Course): string {
+  const codeParts = parseCourseCodeParts(course.code);
+  if (!codeParts) return course.code;
+
+  return codeParts.section
+    ? `${codeParts.subject} ${codeParts.catalogNumber}-${codeParts.section}`
+    : `${codeParts.subject} ${codeParts.catalogNumber}`;
+}
+
+export function getRegistrationHandoffText(courseOrCourses?: Course | Course[]): string | null {
+  if (!courseOrCourses) return null;
+
+  const courses = Array.isArray(courseOrCourses) ? courseOrCourses : [courseOrCourses];
+  if (courses.length === 0) return null;
+
+  const lines = Array.from(new Set(courses.map(getRegistrationQueryText).filter(Boolean)));
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+export function getRegistrationFeedbackLabel(courseOrCourses?: Course | Course[]): string {
+  if (!courseOrCourses) return "Opened Registration";
+
+  const courses = Array.isArray(courseOrCourses) ? courseOrCourses : [courseOrCourses];
+  if (courses.length === 0) return "Opened Registration";
+  if (courses.length === 1) return "Copied Course";
+  return `Copied ${courses.length} Courses`;
+}
+
+export function openRegistrationPage(): void {
+  if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+    void chrome.tabs.create({ url: UCHICAGO_REGISTRATION_URL });
+    return;
+  }
+
+  window.open(UCHICAGO_REGISTRATION_URL, "_blank", "noopener");
+}
+
+export async function runRegistrationHandoff(
+  courseOrCourses?: Course | Course[]
+): Promise<{ copied: boolean; copiedText: string | null }> {
+  const copiedText = getRegistrationHandoffText(courseOrCourses);
+  let copied = false;
+
+  if (copiedText) {
+    try {
+      await navigator.clipboard.writeText(copiedText);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  }
+
+  openRegistrationPage();
+
+  return { copied, copiedText };
 }
 
 // Color palette for course blocks

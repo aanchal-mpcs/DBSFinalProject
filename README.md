@@ -1,6 +1,6 @@
 # UChiSchedule
 
-UChiSchedule is a Chrome extension that helps University of Chicago students plan class schedules from the MPCS course catalog. It lets you save courses, view them on a weekly calendar, detect conflicts, and export your schedule as an `.ics` file.
+UChiSchedule is a Chrome extension that helps University of Chicago students plan class schedules from the MPCS course catalog. It lets you save courses, manage multiple schedule drafts, view them on a weekly calendar, detect conflicts, open registration and feedback links, and export your schedule as an `.ics` file.
 
 ## Features
 
@@ -8,10 +8,11 @@ UChiSchedule is a Chrome extension that helps University of Chicago students pla
 - View saved courses in the extension popup
 - Open a full weekly calendar view
 - Detect overlapping course times
-- Create and switch between multiple schedules
+- Create, rename, duplicate, switch, and delete schedules
 - Remove courses from any saved schedule
 - Export a schedule as an `.ics` calendar file
-- Open quick links to RateMyProfessor, Course Feedback, and my.UChicago
+- Open quick links to Course Feedback, course descriptions, and the UChicago registration page
+- Copy course code, course number, and section values from saved course cards
 
 ## Tech Stack
 
@@ -67,26 +68,34 @@ Chrome will load the extension and make it available from the extensions toolbar
 
 3. Use the `+ Calendar` button to save that course into your active schedule.
 
-4. Use the `Details` button to view the course info and open quick links:
-   - `RateMyProfessor`
-   - `Course Feedback`
-   - `Description`
+4. Use the course action buttons to:
+   - add the course to your saved schedule
+   - open `Course Feedback`
+   - open the `Register` page
+   - open the course `Description`
+   - open the `Details` popup for course info
 
 5. Click the extension icon in Chrome to open the popup. In the popup, you can:
    - see saved courses
+   - open `Feedback`, `Register`, and `Description` links for each saved course
+   - copy full course code, subject/number, or section from each saved course
    - remove a course
    - switch schedules
    - create a new schedule
+   - rename schedules
+   - duplicate schedules
    - open the calendar page
-   - go to `my.UChicago`
+   - go to the UChicago registration page
 
 6. Click `Open Calendar` or `View Calendar` to see your weekly schedule.
 
 7. In the calendar page, you can:
    - see courses laid out by day and time
-   - spot conflicts highlighted visually
+   - spot conflicts highlighted with translucent striped conflict blocks
    - remove saved courses
-   - switch or delete schedules
+   - use `Feedback`, `Register`, and `Description` actions for each saved course
+   - copy course code, number, and section values
+   - create, rename, duplicate, switch, or delete schedules
    - export your current schedule as an `.ics` file
 
 ## Notes

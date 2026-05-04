@@ -1,21 +1,42 @@
-import { useEffect, useState } from "react";
-import type { StorageData, Schedule } from "@/shared/types";
+import { useEffect, useRef, useState } from "react";
+import type { Course, StorageData } from "@/shared/types";
 import {
   getData,
   removeCourse,
   createSchedule,
   switchSchedule,
   deleteSchedule,
+  renameSchedule,
+  duplicateSchedule,
   onStorageChange,
 } from "@/shared/storage";
-import { findConflicts, COURSE_COLORS, UCHICAGO_REGISTRATION_URL } from "@/shared/utils";
+import {
+  findConflicts,
+  COURSE_COLORS,
+  getCourseFeedbackUrl,
+  getRegistrationFeedbackLabel,
+  parseCourseCodeParts,
+  runRegistrationHandoff,
+} from "@/shared/utils";
 
 export function PopupApp() {
   const [data, setData] = useState<StorageData | null>(null);
+  const [registerFeedback, setRegisterFeedback] = useState<{ key: string; label: string } | null>(
+    null
+  );
+  const registerFeedbackTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     getData().then(setData);
     return onStorageChange(setData);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (registerFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(registerFeedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   if (!data) return null;
@@ -45,8 +66,42 @@ export function PopupApp() {
     await deleteSchedule(index);
   };
 
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
+  const handleRenameSchedule = async () => {
+    const nextName = window.prompt("Rename this schedule", schedule.name)?.trim();
+    if (!nextName) return;
+    await renameSchedule(data.activeScheduleIndex, nextName);
+  };
+
+  const handleDuplicateSchedule = async () => {
+    await duplicateSchedule(data.activeScheduleIndex);
+  };
+
+  const handleCopyText = (value: string) => {
+    void navigator.clipboard.writeText(value);
+  };
+
+  const showRegisterFeedback = (key: string, label: string) => {
+    setRegisterFeedback({ key, label });
+
+    if (registerFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(registerFeedbackTimeoutRef.current);
+    }
+
+    registerFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setRegisterFeedback(null);
+      registerFeedbackTimeoutRef.current = null;
+    }, 1600);
+  };
+
+  const getRegisterLabel = (key: string) =>
+    registerFeedback?.key === key ? registerFeedback.label : "Register";
+
+  const handleRegisterClick = async (key: string, courseOrCourses?: Course | Course[]) => {
+    const { copied } = await runRegistrationHandoff(courseOrCourses);
+    showRegisterFeedback(
+      key,
+      copied ? getRegistrationFeedbackLabel(courseOrCourses) : "Opened Registration"
+    );
   };
 
   return (
@@ -65,34 +120,52 @@ export function PopupApp() {
       </div>
 
       {/* Schedule selector */}
-      <div className="px-4 py-2 bg-gray-50 border-b flex items-center gap-2">
-        <select
-          value={data.activeScheduleIndex}
-          onChange={(e) => handleSwitch(Number(e.target.value))}
-          className="text-sm border rounded px-2 py-1 flex-1"
-        >
-          {data.schedules.map((s, i) => (
-            <option key={s.id} value={i}>
-              {s.name} ({Object.keys(s.courses).length})
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={handleNewSchedule}
-          className="text-xs bg-maroon text-white px-2 py-1 rounded font-semibold"
-          title="New schedule"
-        >
-          +
-        </button>
-        {data.schedules.length > 1 && (
-          <button
-            onClick={() => handleDelete(data.activeScheduleIndex)}
-            className="text-xs text-red-600 px-2 py-1 rounded border border-red-200 font-semibold"
-            title="Delete schedule"
+      <div className="px-4 py-2 bg-gray-50 border-b space-y-2">
+        <div className="flex items-center gap-2">
+          <select
+            value={data.activeScheduleIndex}
+            onChange={(e) => handleSwitch(Number(e.target.value))}
+            className="text-sm border rounded px-2 py-1 flex-1"
           >
-            Del
+            {data.schedules.map((s, i) => (
+              <option key={s.id} value={i}>
+                {s.name} ({Object.keys(s.courses).length})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={handleNewSchedule}
+            className="text-[11px] bg-maroon text-white px-2.5 py-1 rounded font-semibold"
+            title="New schedule"
+          >
+            New
           </button>
-        )}
+          <button
+            onClick={handleRenameSchedule}
+            className="text-[11px] border border-gray-300 text-gray-700 px-2.5 py-1 rounded font-semibold hover:bg-gray-100"
+            title="Rename schedule"
+          >
+            Rename
+          </button>
+          <button
+            onClick={handleDuplicateSchedule}
+            className="text-[11px] border border-gray-300 text-gray-700 px-2.5 py-1 rounded font-semibold hover:bg-gray-100"
+            title="Duplicate schedule"
+          >
+            Duplicate
+          </button>
+          {data.schedules.length > 1 && (
+            <button
+              onClick={() => handleDelete(data.activeScheduleIndex)}
+              className="text-[11px] text-red-600 px-2.5 py-1 rounded border border-red-200 font-semibold hover:bg-red-50"
+              title="Delete schedule"
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Conflicts warning */}
@@ -110,28 +183,32 @@ export function PopupApp() {
       {/* Course list */}
       <div className="px-4 py-3">
         {courses.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm">
-            <p>No courses saved yet.</p>
-            <p className="mt-1">
-              Visit the{" "}
+          <div className="text-center py-6 text-sm border border-dashed border-gray-200 rounded-lg bg-gray-50 px-4">
+            <p className="text-gray-600 font-medium">No courses saved yet.</p>
+            <p className="mt-1 text-gray-500">
+              Start from the MPCS catalog or jump straight to registration.
+            </p>
+            <div className="mt-3 flex justify-center gap-2">
               <a
                 href="https://mpcs-courses.cs.uchicago.edu"
                 target="_blank"
                 rel="noopener"
-                className="text-maroon underline"
+                className="text-xs bg-maroon text-white px-3 py-1.5 rounded font-semibold no-underline hover:bg-maroon-800"
               >
-                MPCS catalog
-              </a>{" "}
-              to add courses.
-            </p>
+                Open Catalog
+              </a>
+              <button
+                onClick={() => handleRegisterClick("empty-register")}
+                className="text-xs bg-teal-700 text-white px-3 py-1.5 rounded font-semibold hover:bg-teal-800"
+              >
+                {getRegisterLabel("empty-register")}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">
             {courses.map((course, i) => (
-              <div
-                key={course.id}
-                className="border rounded-lg p-3 hover:shadow-sm transition-shadow"
-              >
+              <div key={course.id} className="border rounded-lg p-3 hover:shadow-sm transition-shadow">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -142,13 +219,6 @@ export function PopupApp() {
                       <span className="text-xs font-bold text-maroon">
                         {course.code}
                       </span>
-                      <button
-                        onClick={() => handleCopyCode(course.code)}
-                        className="text-[10px] text-gray-400 hover:text-gray-600"
-                        title="Copy course code"
-                      >
-                        Copy
-                      </button>
                     </div>
                     <div className="text-sm font-semibold mt-0.5 truncate">
                       {course.name}
@@ -157,6 +227,69 @@ export function PopupApp() {
                       {course.instructor} &middot; {course.meetingText}
                     </div>
                     <div className="text-xs text-gray-400">{course.location}</div>
+                    <div className="mt-2 flex gap-2 flex-wrap">
+                      <a
+                        href={getCourseFeedbackUrl(course)}
+                        target="_blank"
+                        rel="noopener"
+                        className="text-[11px] bg-gray-600 text-white px-2.5 py-1 rounded font-semibold no-underline hover:bg-gray-700"
+                      >
+                        Feedback
+                      </a>
+                      <button
+                        onClick={() => handleRegisterClick(`course:${course.id}`, course)}
+                        className="text-[11px] bg-teal-700 text-white px-2.5 py-1 rounded font-semibold hover:bg-teal-800"
+                      >
+                        {getRegisterLabel(`course:${course.id}`)}
+                      </button>
+                      {course.detailUrl && (
+                        <a
+                          href={course.detailUrl}
+                          target="_blank"
+                          rel="noopener"
+                          className="text-[11px] border border-maroon text-maroon px-2.5 py-1 rounded font-semibold no-underline hover:bg-maroon-50"
+                        >
+                          Description
+                        </a>
+                      )}
+                    </div>
+                    <div className="mt-2 flex gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => handleCopyText(course.code)}
+                        className="text-[10px] text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50"
+                        title="Copy full course code"
+                      >
+                        Copy Code
+                      </button>
+                      {(() => {
+                        const codeParts = parseCourseCodeParts(course.code);
+                        if (!codeParts) return null;
+                        const section = codeParts.section;
+
+                        return (
+                          <>
+                            <button
+                              onClick={() =>
+                                handleCopyText(`${codeParts.subject} ${codeParts.catalogNumber}`)
+                              }
+                              className="text-[10px] text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50"
+                              title="Copy subject and catalog number"
+                            >
+                              Copy Number
+                            </button>
+                            {section && (
+                              <button
+                                onClick={() => handleCopyText(section)}
+                                className="text-[10px] text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50"
+                                title="Copy course section"
+                              >
+                                Copy Section
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                   <button
                     onClick={() => handleRemove(course.id)}
@@ -175,19 +308,17 @@ export function PopupApp() {
       {/* Footer */}
       {courses.length > 0 && (
         <div className="px-4 py-3 border-t bg-gray-50 flex gap-2">
-          <a
-            href={UCHICAGO_REGISTRATION_URL}
-            target="_blank"
-            rel="noopener"
-            className="flex-1 text-center text-xs bg-maroon text-white py-2 rounded font-semibold no-underline hover:bg-maroon-800"
+          <button
+            onClick={() => handleRegisterClick("footer-register", courses)}
+            className="flex-1 text-center text-xs bg-teal-700 text-white py-2 rounded font-semibold hover:bg-teal-800"
           >
-            Register
-          </a>
+            {getRegisterLabel("footer-register")}
+          </button>
           <button
             onClick={handleOpenCalendar}
-            className="flex-1 text-xs border border-maroon text-maroon py-2 rounded font-semibold hover:bg-maroon-50"
+            className="flex-1 text-xs bg-maroon text-white py-2 rounded font-semibold hover:bg-maroon-800"
           >
-            View Calendar
+            Open Calendar
           </button>
         </div>
       )}
