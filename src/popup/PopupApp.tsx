@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { StorageData } from "@/shared/types";
+import { useEffect, useRef, useState } from "react";
+import type { Course, StorageData } from "@/shared/types";
 import {
   getData,
   removeCourse,
@@ -13,17 +13,30 @@ import {
 import {
   findConflicts,
   COURSE_COLORS,
-  UCHICAGO_REGISTRATION_URL,
   getCourseFeedbackUrl,
+  getRegistrationFeedbackLabel,
   parseCourseCodeParts,
+  runRegistrationHandoff,
 } from "@/shared/utils";
 
 export function PopupApp() {
   const [data, setData] = useState<StorageData | null>(null);
+  const [registerFeedback, setRegisterFeedback] = useState<{ key: string; label: string } | null>(
+    null
+  );
+  const registerFeedbackTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     getData().then(setData);
     return onStorageChange(setData);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (registerFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(registerFeedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   if (!data) return null;
@@ -65,6 +78,30 @@ export function PopupApp() {
 
   const handleCopyText = (value: string) => {
     void navigator.clipboard.writeText(value);
+  };
+
+  const showRegisterFeedback = (key: string, label: string) => {
+    setRegisterFeedback({ key, label });
+
+    if (registerFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(registerFeedbackTimeoutRef.current);
+    }
+
+    registerFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setRegisterFeedback(null);
+      registerFeedbackTimeoutRef.current = null;
+    }, 1600);
+  };
+
+  const getRegisterLabel = (key: string) =>
+    registerFeedback?.key === key ? registerFeedback.label : "Register";
+
+  const handleRegisterClick = async (key: string, courseOrCourses?: Course | Course[]) => {
+    const { copied } = await runRegistrationHandoff(courseOrCourses);
+    showRegisterFeedback(
+      key,
+      copied ? getRegistrationFeedbackLabel(courseOrCourses) : "Opened Registration"
+    );
   };
 
   return (
@@ -160,14 +197,12 @@ export function PopupApp() {
               >
                 Open Catalog
               </a>
-              <a
-                href={UCHICAGO_REGISTRATION_URL}
-                target="_blank"
-                rel="noopener"
-                className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold no-underline hover:bg-teal-50"
+              <button
+                onClick={() => handleRegisterClick("empty-register")}
+                className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold hover:bg-teal-50"
               >
-                Register
-              </a>
+                {getRegisterLabel("empty-register")}
+              </button>
             </div>
           </div>
         ) : (
@@ -201,14 +236,12 @@ export function PopupApp() {
                       >
                         Feedback
                       </a>
-                      <a
-                        href={UCHICAGO_REGISTRATION_URL}
-                        target="_blank"
-                        rel="noopener"
-                        className="text-[11px] bg-teal-700 text-white px-2.5 py-1 rounded font-semibold no-underline hover:bg-teal-800"
+                      <button
+                        onClick={() => handleRegisterClick(`course:${course.id}`, course)}
+                        className="text-[11px] bg-teal-700 text-white px-2.5 py-1 rounded font-semibold hover:bg-teal-800"
                       >
-                        Register
-                      </a>
+                        {getRegisterLabel(`course:${course.id}`)}
+                      </button>
                       {course.detailUrl && (
                         <a
                           href={course.detailUrl}
@@ -275,14 +308,12 @@ export function PopupApp() {
       {/* Footer */}
       {courses.length > 0 && (
         <div className="px-4 py-3 border-t bg-gray-50 flex gap-2">
-          <a
-            href={UCHICAGO_REGISTRATION_URL}
-            target="_blank"
-            rel="noopener"
-            className="flex-1 text-center text-xs bg-maroon text-white py-2 rounded font-semibold no-underline hover:bg-maroon-800"
+          <button
+            onClick={() => handleRegisterClick("footer-register", courses)}
+            className="flex-1 text-center text-xs bg-maroon text-white py-2 rounded font-semibold hover:bg-maroon-800"
           >
-            Register
-          </a>
+            {getRegisterLabel("footer-register")}
+          </button>
           <button
             onClick={handleOpenCalendar}
             className="flex-1 text-xs border border-maroon text-maroon py-2 rounded font-semibold hover:bg-maroon-50"
