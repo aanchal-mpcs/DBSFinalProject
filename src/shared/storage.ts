@@ -1,6 +1,11 @@
 import type { Course, Schedule, StorageData } from "./types";
+import { inferScheduleQuarterLabel } from "./utils";
 
 const STORAGE_KEY = "uchischedule_data";
+
+function isGenericScheduleName(name: string): boolean {
+  return /^Schedule \d+(?: Copy)?$/.test(name.trim());
+}
 
 function createDefaultSchedule(): Schedule {
   return {
@@ -41,6 +46,12 @@ export async function addCourse(course: Course): Promise<void> {
   const data = await getData();
   const schedule = data.schedules[data.activeScheduleIndex];
   schedule.courses[course.id] = course;
+
+  const quarterLabel = inferScheduleQuarterLabel(schedule.courses);
+  if (quarterLabel && isGenericScheduleName(schedule.name)) {
+    schedule.name = quarterLabel;
+  }
+
   await setData(data);
 }
 
@@ -94,6 +105,22 @@ export async function renameSchedule(
     data.schedules[index].name = name;
     await setData(data);
   }
+}
+
+export async function duplicateSchedule(index: number): Promise<void> {
+  const data = await getData();
+  if (index < 0 || index >= data.schedules.length) return;
+
+  const source = data.schedules[index];
+  const duplicated: Schedule = {
+    id: crypto.randomUUID(),
+    name: `${source.name} Copy`,
+    courses: { ...source.courses },
+  };
+
+  data.schedules.splice(index + 1, 0, duplicated);
+  data.activeScheduleIndex = index + 1;
+  await setData(data);
 }
 
 export function onStorageChange(

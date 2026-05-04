@@ -1,5 +1,9 @@
 import type { Course, Conflict } from "@/shared/types";
-import { getCourseFeedbackUrl, UCHICAGO_REGISTRATION_URL } from "@/shared/utils";
+import {
+  getCourseFeedbackUrl,
+  parseCourseCodeParts,
+  UCHICAGO_REGISTRATION_URL,
+} from "@/shared/utils";
 
 interface Props {
   courses: Course[];
@@ -9,23 +13,39 @@ interface Props {
 }
 
 export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
+  const handleCopyText = (value: string) => {
+    void navigator.clipboard.writeText(value);
+  };
+
   return (
     <div>
       <h2 className="text-base font-bold text-gray-800 mb-3">Saved Courses</h2>
 
       {courses.length === 0 ? (
-        <p className="text-sm text-gray-400 leading-relaxed">
-          No courses added yet. Visit the{" "}
-          <a
-            href="https://mpcs-courses.cs.uchicago.edu"
-            target="_blank"
-            rel="noopener"
-            className="text-maroon underline"
-          >
-            MPCS course catalog
-          </a>{" "}
-          to add courses.
-        </p>
+        <div className="text-sm leading-relaxed border border-dashed border-gray-200 rounded-lg bg-white p-4">
+          <p className="text-gray-700 font-medium">No courses added yet.</p>
+          <p className="text-gray-500 mt-1">
+            Start in the MPCS course catalog, then come back here to compare, export, and register.
+          </p>
+          <div className="mt-3 flex gap-2 flex-wrap">
+            <a
+              href="https://mpcs-courses.cs.uchicago.edu"
+              target="_blank"
+              rel="noopener"
+              className="text-xs bg-maroon text-white px-3 py-1.5 rounded font-semibold no-underline hover:bg-maroon-800"
+            >
+              Open Catalog
+            </a>
+            <a
+              href={UCHICAGO_REGISTRATION_URL}
+              target="_blank"
+              rel="noopener"
+              className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold no-underline hover:bg-teal-50"
+            >
+              Register
+            </a>
+          </div>
+        </div>
       ) : (
         <div className="space-y-2">
           {courses.map((course) => (
@@ -78,6 +98,43 @@ export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
                         Description
                       </a>
                     )}
+                  </div>
+                  <div className="mt-2 flex gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => handleCopyText(course.code)}
+                      className="text-[10px] text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50"
+                      title="Copy full course code"
+                    >
+                      Copy Code
+                    </button>
+                    {(() => {
+                      const codeParts = parseCourseCodeParts(course.code);
+                      if (!codeParts) return null;
+                      const section = codeParts.section;
+
+                      return (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleCopyText(`${codeParts.subject} ${codeParts.catalogNumber}`)
+                            }
+                            className="text-[10px] text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50"
+                            title="Copy subject and catalog number"
+                          >
+                            Copy Number
+                          </button>
+                          {section && (
+                            <button
+                              onClick={() => handleCopyText(section)}
+                              className="text-[10px] text-gray-500 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50"
+                              title="Copy course section"
+                            >
+                              Copy Section
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 <button

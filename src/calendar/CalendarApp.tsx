@@ -6,6 +6,8 @@ import {
   switchSchedule,
   createSchedule,
   deleteSchedule,
+  renameSchedule,
+  duplicateSchedule,
   onStorageChange,
 } from "@/shared/storage";
 import {
@@ -62,6 +64,16 @@ export function CalendarApp() {
     await deleteSchedule(index);
   };
 
+  const handleRenameSchedule = async () => {
+    const nextName = window.prompt("Rename this schedule", schedule.name)?.trim();
+    if (!nextName) return;
+    await renameSchedule(data.activeScheduleIndex, nextName);
+  };
+
+  const handleDuplicateSchedule = async () => {
+    await duplicateSchedule(data.activeScheduleIndex);
+  };
+
   // Assign colors to courses
   const colorMap: Record<string, string> = {};
   courseList.forEach((c, i) => {
@@ -76,7 +88,7 @@ export function CalendarApp() {
           <h1 className="text-xl font-bold tracking-tight">UChiSchedule</h1>
           <span className="text-sm opacity-80">Weekly Planner</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap justify-end">
           {/* Schedule selector */}
           <select
             value={data.activeScheduleIndex}
@@ -93,7 +105,19 @@ export function CalendarApp() {
             onClick={handleNewSchedule}
             className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded font-semibold transition-colors"
           >
-            + New
+            New
+          </button>
+          <button
+            onClick={handleRenameSchedule}
+            className="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded font-semibold transition-colors"
+          >
+            Rename
+          </button>
+          <button
+            onClick={handleDuplicateSchedule}
+            className="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded font-semibold transition-colors"
+          >
+            Duplicate
           </button>
           {data.schedules.length > 1 && (
             <button
