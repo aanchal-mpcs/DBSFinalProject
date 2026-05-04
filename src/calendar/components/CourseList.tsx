@@ -1,8 +1,10 @@
+import { useEffect, useRef, useState } from "react";
 import type { Course, Conflict } from "@/shared/types";
 import {
   getCourseFeedbackUrl,
+  getRegistrationFeedbackLabel,
   parseCourseCodeParts,
-  UCHICAGO_REGISTRATION_URL,
+  runRegistrationHandoff,
 } from "@/shared/utils";
 
 interface Props {
@@ -13,8 +15,45 @@ interface Props {
 }
 
 export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
+  const [registerFeedback, setRegisterFeedback] = useState<{ key: string; label: string } | null>(
+    null
+  );
+  const registerFeedbackTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (registerFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(registerFeedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleCopyText = (value: string) => {
     void navigator.clipboard.writeText(value);
+  };
+
+  const showRegisterFeedback = (key: string, label: string) => {
+    setRegisterFeedback({ key, label });
+
+    if (registerFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(registerFeedbackTimeoutRef.current);
+    }
+
+    registerFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setRegisterFeedback(null);
+      registerFeedbackTimeoutRef.current = null;
+    }, 1600);
+  };
+
+  const getRegisterLabel = (key: string) =>
+    registerFeedback?.key === key ? registerFeedback.label : "Register";
+
+  const handleRegisterClick = async (key: string, courseOrCourses?: Course | Course[]) => {
+    const { copied } = await runRegistrationHandoff(courseOrCourses);
+    showRegisterFeedback(
+      key,
+      copied ? getRegistrationFeedbackLabel(courseOrCourses) : "Opened Registration"
+    );
   };
 
   return (
@@ -36,14 +75,12 @@ export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
             >
               Open Catalog
             </a>
-            <a
-              href={UCHICAGO_REGISTRATION_URL}
-              target="_blank"
-              rel="noopener"
-              className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold no-underline hover:bg-teal-50"
+            <button
+              onClick={() => handleRegisterClick("empty-register")}
+              className="text-xs border border-teal-700 text-teal-700 px-3 py-1.5 rounded font-semibold hover:bg-teal-50"
             >
-              Register
-            </a>
+              {getRegisterLabel("empty-register")}
+            </button>
           </div>
         </div>
       ) : (
@@ -80,14 +117,12 @@ export function CourseList({ courses, colorMap, conflicts, onRemove }: Props) {
                     >
                       Feedback
                     </a>
-                    <a
-                      href={UCHICAGO_REGISTRATION_URL}
-                      target="_blank"
-                      rel="noopener"
-                      className="text-[11px] bg-teal-700 text-white px-2.5 py-1 rounded font-semibold no-underline hover:bg-teal-800"
+                    <button
+                      onClick={() => handleRegisterClick(`course:${course.id}`, course)}
+                      className="text-[11px] bg-teal-700 text-white px-2.5 py-1 rounded font-semibold hover:bg-teal-800"
                     >
-                      Register
-                    </a>
+                      {getRegisterLabel(`course:${course.id}`)}
+                    </button>
                     {course.detailUrl && (
                       <a
                         href={course.detailUrl}

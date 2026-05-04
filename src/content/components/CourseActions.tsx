@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Course } from "@/shared/types";
 import { addCourse, removeCourse } from "@/shared/storage";
-import { getCourseFeedbackUrl, UCHICAGO_REGISTRATION_URL } from "@/shared/utils";
+import {
+  getCourseFeedbackUrl,
+  getRegistrationFeedbackLabel,
+  runRegistrationHandoff,
+} from "@/shared/utils";
 
 interface Props {
   course: Course;
@@ -12,9 +16,37 @@ interface Props {
 export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: Props) {
   const [added, setAdded] = useState(initialAdded);
   const [showPopup, setShowPopup] = useState(false);
+  const [registerFeedback, setRegisterFeedback] = useState<string | null>(null);
+  const registerFeedbackTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (registerFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(registerFeedbackTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleFeedbackClick = () => {
     window.open(getCourseFeedbackUrl(course), "_blank", "noopener");
+  };
+
+  const showRegisterFeedback = (label: string) => {
+    setRegisterFeedback(label);
+
+    if (registerFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(registerFeedbackTimeoutRef.current);
+    }
+
+    registerFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setRegisterFeedback(null);
+      registerFeedbackTimeoutRef.current = null;
+    }, 1600);
+  };
+
+  const handleRegisterClick = async () => {
+    const { copied } = await runRegistrationHandoff(course);
+    showRegisterFeedback(copied ? getRegistrationFeedbackLabel(course) : "Opened Registration");
   };
 
   const handleToggle = async () => {
@@ -83,23 +115,22 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
           Feedback
         </button>
 
-        <a
-          href={UCHICAGO_REGISTRATION_URL}
-          target="_blank"
-          rel="noopener"
+        <button
+          onClick={handleRegisterClick}
           style={{
             padding: "3px 8px",
+            border: "none",
             borderRadius: "4px",
             fontSize: "11px",
             fontWeight: 600,
             color: "#fff",
             background: "#0f766e",
-            textDecoration: "none",
             whiteSpace: "nowrap",
+            cursor: "pointer",
           }}
         >
-          Register
-        </a>
+          {registerFeedback ?? "Register"}
+        </button>
 
         {course.detailUrl && (
           <a
@@ -219,22 +250,21 @@ export function CourseActions({ course, isAdded: initialAdded, conflictsWith }: 
               Course Feedback
             </button>
 
-            <a
-              href={UCHICAGO_REGISTRATION_URL}
-              target="_blank"
-              rel="noopener"
+            <button
+              onClick={handleRegisterClick}
               style={{
                 padding: "6px 12px",
+                border: "none",
                 borderRadius: "5px",
                 fontSize: "12px",
                 fontWeight: 600,
                 color: "#fff",
                 background: "#0f766e",
-                textDecoration: "none",
+                cursor: "pointer",
               }}
             >
-              Register
-            </a>
+              {registerFeedback ?? "Register"}
+            </button>
 
             {course.detailUrl && (
               <a

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StorageData } from "@/shared/types";
 import {
   getData,
@@ -14,17 +14,28 @@ import {
   findConflicts,
   generateICS,
   COURSE_COLORS,
-  UCHICAGO_REGISTRATION_URL,
+  getRegistrationFeedbackLabel,
+  runRegistrationHandoff,
 } from "@/shared/utils";
 import { CalendarGrid } from "./components/CalendarGrid";
 import { CourseList } from "./components/CourseList";
 
 export function CalendarApp() {
   const [data, setData] = useState<StorageData | null>(null);
+  const [registerFeedback, setRegisterFeedback] = useState<string | null>(null);
+  const registerFeedbackTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     getData().then(setData);
     return onStorageChange(setData);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (registerFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(registerFeedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   if (!data) return null;
@@ -72,6 +83,21 @@ export function CalendarApp() {
 
   const handleDuplicateSchedule = async () => {
     await duplicateSchedule(data.activeScheduleIndex);
+  };
+
+  const handleRegisterClick = async () => {
+    const { copied } = await runRegistrationHandoff(courseList);
+    const label = copied ? getRegistrationFeedbackLabel(courseList) : "Opened Registration";
+    setRegisterFeedback(label);
+
+    if (registerFeedbackTimeoutRef.current !== null) {
+      window.clearTimeout(registerFeedbackTimeoutRef.current);
+    }
+
+    registerFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setRegisterFeedback(null);
+      registerFeedbackTimeoutRef.current = null;
+    }, 1600);
   };
 
   // Assign colors to courses
@@ -141,14 +167,12 @@ export function CalendarApp() {
             </button>
           )}
 
-          <a
-            href={UCHICAGO_REGISTRATION_URL}
-            target="_blank"
-            rel="noopener"
-            className="text-sm bg-white text-maroon px-4 py-1.5 rounded font-semibold no-underline hover:bg-gray-100 transition-colors"
+          <button
+            onClick={handleRegisterClick}
+            className="text-sm bg-white text-maroon px-4 py-1.5 rounded font-semibold hover:bg-gray-100 transition-colors"
           >
-            Register
-          </a>
+            {registerFeedback ?? "Register"}
+          </button>
         </div>
       </header>
 

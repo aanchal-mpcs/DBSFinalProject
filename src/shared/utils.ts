@@ -174,6 +174,63 @@ export function parseCourseCodeParts(courseCode: string): CourseCodeParts | null
   };
 }
 
+function getRegistrationQueryText(course: Course): string {
+  const codeParts = parseCourseCodeParts(course.code);
+  if (!codeParts) return course.code;
+
+  return codeParts.section
+    ? `${codeParts.subject} ${codeParts.catalogNumber}-${codeParts.section}`
+    : `${codeParts.subject} ${codeParts.catalogNumber}`;
+}
+
+export function getRegistrationHandoffText(courseOrCourses?: Course | Course[]): string | null {
+  if (!courseOrCourses) return null;
+
+  const courses = Array.isArray(courseOrCourses) ? courseOrCourses : [courseOrCourses];
+  if (courses.length === 0) return null;
+
+  const lines = Array.from(new Set(courses.map(getRegistrationQueryText).filter(Boolean)));
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+export function getRegistrationFeedbackLabel(courseOrCourses?: Course | Course[]): string {
+  if (!courseOrCourses) return "Opened Registration";
+
+  const courses = Array.isArray(courseOrCourses) ? courseOrCourses : [courseOrCourses];
+  if (courses.length === 0) return "Opened Registration";
+  if (courses.length === 1) return "Copied Course";
+  return `Copied ${courses.length} Courses`;
+}
+
+export function openRegistrationPage(): void {
+  if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+    void chrome.tabs.create({ url: UCHICAGO_REGISTRATION_URL });
+    return;
+  }
+
+  window.open(UCHICAGO_REGISTRATION_URL, "_blank", "noopener");
+}
+
+export async function runRegistrationHandoff(
+  courseOrCourses?: Course | Course[]
+): Promise<{ copied: boolean; copiedText: string | null }> {
+  const copiedText = getRegistrationHandoffText(courseOrCourses);
+  let copied = false;
+
+  if (copiedText) {
+    try {
+      await navigator.clipboard.writeText(copiedText);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  }
+
+  openRegistrationPage();
+
+  return { copied, copiedText };
+}
+
 // Color palette for course blocks
 export const COURSE_COLORS = [
   "#2e7d32", // green
