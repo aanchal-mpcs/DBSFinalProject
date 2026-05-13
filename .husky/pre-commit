@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+set -e
+
+echo "Running staged secret scan..."
+if git diff --cached --no-ext-diff --unified=0 -- . ':(exclude).husky/pre-commit' \
+  | grep '^+' \
+  | grep -v '^+++' \
+  | grep -viE 'GITHUB_TOKEN:[[:space:]]*\$\{\{[[:space:]]*secrets\.GITHUB_TOKEN[[:space:]]*\}\}' \
+  | grep -iE '(sk-[a-z0-9]{20,}|AIza[a-z0-9_-]{20,}|ghp_[a-z0-9]{20,}|Bearer [A-Za-z0-9._-]{20,}|DATABASE_URL[[:space:]]*[:=][[:space:]]*[^[:space:]]+|api[_-]?key[[:space:]]*[:=][[:space:]]*[^[:space:]]+|secret[[:space:]_-]{0,3}[:=][[:space:]]*[^[:space:]]+|token[[:space:]_-]{0,3}[:=][[:space:]]*[^[:space:]]+|password[[:space:]_-]{0,3}[:=][[:space:]]*[^[:space:]]+|postgres:\/\/[^[:space:]@]+:[^[:space:]@]+@|mysql:\/\/[^[:space:]@]+:[^[:space:]@]+@|mongodb(\+srv)?:\/\/[^[:space:]@]+:[^[:space:]@]+@)'; then
+  echo "Potential secret-like content found in staged changes. Commit blocked."
+  exit 1
+fi
+
+echo "Running typecheck..."
+npm run typecheck
+
+echo "Running build..."
+npm run build
