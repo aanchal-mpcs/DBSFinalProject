@@ -80,6 +80,52 @@ export function formatHour(h: number): string {
   return `${display} ${period}`;
 }
 
+export function formatTimeLabel(timeStr: string): string {
+  const hours = timeToHours(timeStr);
+  if (hours == null) return timeStr;
+
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours % 1) * 60);
+  const period = wholeHours >= 12 ? "PM" : "AM";
+  const displayHour = wholeHours === 0 ? 12 : wholeHours > 12 ? wholeHours - 12 : wholeHours;
+  const minuteLabel = minutes === 0 ? "" : `:${String(minutes).padStart(2, "0")}`;
+  return `${displayHour}${minuteLabel} ${period}`;
+}
+
+export function getOverlapWindow(
+  a: CourseMeeting,
+  b: CourseMeeting
+): { start: string; end: string } | null {
+  if (!a.day || !b.day || a.day !== b.day) return null;
+
+  const aStart = timeToHours(a.start);
+  const aEnd = timeToHours(a.end);
+  const bStart = timeToHours(b.start);
+  const bEnd = timeToHours(b.end);
+  if (aStart == null || aEnd == null || bStart == null || bEnd == null) {
+    return null;
+  }
+
+  const start = Math.max(aStart, bStart);
+  const end = Math.min(aEnd, bEnd);
+  if (start >= end) return null;
+
+  const toTimeString = (value: number) => {
+    const wholeHours = Math.floor(value);
+    const minutes = Math.round((value % 1) * 60);
+    const normalizedHour = ((wholeHours + 11) % 12) + 1;
+    const suffix = wholeHours >= 12 ? "pm" : "am";
+    return minutes === 0
+      ? `${normalizedHour}${suffix}`
+      : `${normalizedHour}:${String(minutes).padStart(2, "0")}${suffix}`;
+  };
+
+  return {
+    start: toTimeString(start),
+    end: toTimeString(end),
+  };
+}
+
 // Parse meeting time text like "Monday 5:30pm - 8:30pm" or "Monday 6pm - 8pm"
 export function parseMeetingTime(text: string): CourseMeeting[] {
   const lines = text
@@ -119,13 +165,34 @@ export function findConflicts(courses: Record<string, Course>): Conflict[] {
       for (const ma of a.meetings) {
         for (const mb of b.meetings) {
           if (meetingsOverlap(ma, mb)) {
-            conflicts.push({ courseA: a, courseB: b, day: ma.day });
+            const overlap = getOverlapWindow(ma, mb);
+            conflicts.push({
+              courseA: a,
+              courseB: b,
+              day: ma.day,
+              start: overlap?.start ?? ma.start,
+              end: overlap?.end ?? ma.end,
+            });
           }
         }
       }
     }
   }
   return conflicts;
+}
+
+export function getConflictKey(conflict: Conflict): string {
+  return [
+    conflict.courseA.id,
+    conflict.courseB.id,
+    conflict.day,
+    conflict.start,
+    conflict.end,
+  ].join("|");
+}
+
+export function getConflictDescription(conflict: Conflict): string {
+  return `${conflict.courseA.code} and ${conflict.courseB.code} overlap on ${conflict.day} from ${formatTimeLabel(conflict.start)} to ${formatTimeLabel(conflict.end)}`;
 }
 
 // Check if a course conflicts with any saved courses

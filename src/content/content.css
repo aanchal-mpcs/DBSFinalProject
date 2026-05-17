@@ -19,3 +19,13 @@ tr.uchi-conflict td:last-child {
 tr.uchi-conflict td:first-child {
   position: relative;
 }
+
+@media (prefers-color-scheme: dark) {
+  tr.uchi-conflict {
+    background-color: rgba(127, 29, 29, 0.22) !important;
+  }
+
+  tr.uchi-conflict td {
+    text-decoration-color: #f87171;
+  }
+}

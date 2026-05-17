@@ -1,4 +1,4 @@
-import type { Course, Schedule, StorageData } from "./types";
+import type { Course, Schedule, StorageData, ThemePreference } from "./types";
 import {
   deriveScheduleName,
   recomputeAutoScheduleName,
@@ -18,6 +18,7 @@ function getDefaultData(): StorageData {
   return {
     schedules: [createDefaultSchedule()],
     activeScheduleIndex: 0,
+    themePreference: "system",
   };
 }
 
@@ -109,10 +110,23 @@ function normalizeData(value: unknown): { data: StorageData; changed: boolean } 
     changed = true;
   }
 
+  const rawThemePreference = value.themePreference;
+  const themePreference: ThemePreference =
+    rawThemePreference === "light" ||
+    rawThemePreference === "dark" ||
+    rawThemePreference === "system"
+      ? rawThemePreference
+      : "system";
+
+  if (themePreference !== rawThemePreference) {
+    changed = true;
+  }
+
   return {
     data: {
       schedules,
       activeScheduleIndex,
+      themePreference,
     },
     changed,
   };
@@ -160,6 +174,34 @@ export async function removeCourse(courseId: string): Promise<void> {
     schedule.courses,
     `Schedule ${scheduleIndex + 1}`
   );
+  await setData(data);
+}
+
+export async function clearActiveScheduleCourses(): Promise<void> {
+  const data = await getData();
+  const scheduleIndex = data.activeScheduleIndex;
+  const schedule = data.schedules[scheduleIndex];
+  schedule.courses = {};
+  schedule.name = recomputeAutoScheduleName(
+    schedule.name,
+    schedule.courses,
+    `Schedule ${scheduleIndex + 1}`
+  );
+  await setData(data);
+}
+
+export async function setCourseWaitlisted(
+  courseId: string,
+  isWaitlisted: boolean
+): Promise<void> {
+  const data = await getData();
+  const scheduleIndex = data.activeScheduleIndex;
+  const schedule = data.schedules[scheduleIndex];
+  const course = schedule.courses[courseId];
+  if (!course) return;
+
+  course.isWaitlisted = isWaitlisted;
+
   await setData(data);
 }
 
@@ -230,6 +272,12 @@ export async function duplicateSchedule(index: number): Promise<void> {
 
   data.schedules.splice(index + 1, 0, duplicated);
   data.activeScheduleIndex = index + 1;
+  await setData(data);
+}
+
+export async function setThemePreference(themePreference: ThemePreference): Promise<void> {
+  const data = await getData();
+  data.themePreference = themePreference;
   await setData(data);
 }
 

@@ -3,17 +3,27 @@ import type { StorageData } from "@/shared/types";
 import {
   getData,
   removeCourse,
+  clearActiveScheduleCourses,
+  setCourseWaitlisted,
   switchSchedule,
   createSchedule,
   deleteSchedule,
   renameSchedule,
   duplicateSchedule,
+  setThemePreference,
   onStorageChange,
 } from "@/shared/storage";
+import {
+  applyThemePreference,
+  getNextThemePreference,
+  getThemePreferenceLabel,
+} from "@/shared/theme";
 import {
   findConflicts,
   generateICS,
   COURSE_COLORS,
+  getConflictKey,
+  getConflictDescription,
   getRegistrationFeedbackLabel,
   runRegistrationHandoff,
 } from "@/shared/utils";
@@ -23,12 +33,18 @@ import { CourseList } from "./components/CourseList";
 export function CalendarApp() {
   const [data, setData] = useState<StorageData | null>(null);
   const [registerFeedback, setRegisterFeedback] = useState<string | null>(null);
+  const [selectedConflictKey, setSelectedConflictKey] = useState<string | null>(null);
   const registerFeedbackTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     getData().then(setData);
     return onStorageChange(setData);
   }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    applyThemePreference(data.themePreference);
+  }, [data]);
 
   useEffect(() => {
     return () => {
@@ -47,9 +63,17 @@ export function CalendarApp() {
   const conflictIds = new Set(
     conflicts.flatMap((c) => [c.courseA.id, c.courseB.id])
   );
+  const selectedConflict = conflicts.find((conflict) => getConflictKey(conflict) === selectedConflictKey) ?? null;
+  const highlightedCourseIds = new Set(
+    selectedConflict ? [selectedConflict.courseA.id, selectedConflict.courseB.id] : []
+  );
 
   const handleRemove = async (id: string) => {
     await removeCourse(id);
+  };
+
+  const handleWaitlistToggle = async (id: string, isWaitlisted?: boolean) => {
+    await setCourseWaitlisted(id, !isWaitlisted);
   };
 
   const handleExportICS = () => {
@@ -100,6 +124,21 @@ export function CalendarApp() {
     }, 1600);
   };
 
+  const handleThemeToggle = async () => {
+    await setThemePreference(getNextThemePreference(data.themePreference));
+  };
+
+  const handleConflictSelect = (conflictKey: string) => {
+    setSelectedConflictKey((current) => (current === conflictKey ? null : conflictKey));
+  };
+
+  const handleClearCalendar = async () => {
+    if (courseList.length === 0) return;
+    const confirmed = window.confirm(`Clear all ${courseList.length} courses from ${schedule.name}?`);
+    if (!confirmed) return;
+    await clearActiveScheduleCourses();
+  };
+
   // Assign colors to courses
   const colorMap: Record<string, string> = {};
   courseList.forEach((c, i) => {
@@ -107,7 +146,7 @@ export function CalendarApp() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Header */}
       <header className="bg-maroon text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-baseline gap-3">
@@ -115,11 +154,17 @@ export function CalendarApp() {
           <span className="text-sm opacity-80">Weekly Planner</span>
         </div>
         <div className="flex items-center gap-3 flex-wrap justify-end">
+          <button
+            onClick={handleThemeToggle}
+            className="rounded bg-white/15 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/25 dark:bg-white/10 dark:hover:bg-white/20"
+          >
+            {getThemePreferenceLabel(data.themePreference)}
+          </button>
           {/* Schedule selector */}
           <select
             value={data.activeScheduleIndex}
             onChange={(e) => handleSwitch(Number(e.target.value))}
-            className="text-sm text-gray-800 rounded px-2 py-1"
+            className="rounded px-2 py-1 text-sm text-gray-800 dark:bg-slate-800 dark:text-slate-100 dark:ring-1 dark:ring-slate-700"
           >
             {data.schedules.map((s, i) => (
               <option key={s.id} value={i}>
@@ -129,26 +174,26 @@ export function CalendarApp() {
           </select>
           <button
             onClick={handleNewSchedule}
-            className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded font-semibold transition-colors"
+            className="rounded bg-white/20 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20"
           >
             New
           </button>
           <button
             onClick={handleRenameSchedule}
-            className="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded font-semibold transition-colors"
+            className="rounded bg-white/15 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/25 dark:bg-white/10 dark:hover:bg-white/20"
           >
             Rename
           </button>
           <button
             onClick={handleDuplicateSchedule}
-            className="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded font-semibold transition-colors"
+            className="rounded bg-white/15 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/25 dark:bg-white/10 dark:hover:bg-white/20"
           >
             Duplicate
           </button>
           {data.schedules.length > 1 && (
             <button
               onClick={() => handleDelete(data.activeScheduleIndex)}
-              className="text-xs bg-red-500/80 hover:bg-red-500 px-3 py-1.5 rounded font-semibold transition-colors"
+              className="rounded bg-red-500/80 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-red-500 dark:bg-red-600/80 dark:hover:bg-red-600"
             >
               Delete
             </button>
@@ -157,11 +202,25 @@ export function CalendarApp() {
           <span className="text-sm opacity-80">
             {courseList.length} course{courseList.length !== 1 ? "s" : ""}
           </span>
+          {conflicts.length > 0 && (
+            <span className="rounded bg-red-950/20 px-2.5 py-1 text-xs font-semibold text-red-100 ring-1 ring-white/15">
+              {conflicts.length} conflict{conflicts.length !== 1 ? "s" : ""}
+            </span>
+          )}
+
+          {courseList.length > 0 && (
+            <button
+              onClick={handleClearCalendar}
+              className="rounded bg-white/15 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/25 dark:bg-white/10 dark:hover:bg-white/20"
+            >
+              Clear Calendar
+            </button>
+          )}
 
           {courseList.length > 0 && (
             <button
               onClick={handleExportICS}
-              className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded font-semibold transition-colors"
+              className="rounded bg-white/20 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20"
             >
               Export .ics
             </button>
@@ -169,7 +228,7 @@ export function CalendarApp() {
 
           <button
             onClick={handleRegisterClick}
-            className="text-sm bg-white text-maroon px-4 py-1.5 rounded font-semibold hover:bg-gray-100 transition-colors"
+            className="rounded bg-white px-4 py-1.5 text-sm font-semibold text-maroon transition-colors hover:bg-gray-100 dark:bg-slate-100 dark:text-maroon-800 dark:hover:bg-white"
           >
             {registerFeedback ?? "Register"}
           </button>
@@ -184,6 +243,7 @@ export function CalendarApp() {
             courses={courseList}
             colorMap={colorMap}
             conflictIds={conflictIds}
+            highlightedCourseIds={highlightedCourseIds}
           />
         </div>
 
@@ -194,6 +254,10 @@ export function CalendarApp() {
             colorMap={colorMap}
             conflicts={conflicts}
             onRemove={handleRemove}
+            onToggleWaitlisted={handleWaitlistToggle}
+            highlightedCourseIds={highlightedCourseIds}
+            onSelectConflict={handleConflictSelect}
+            selectedConflictKey={selectedConflictKey}
           />
         </div>
       </div>

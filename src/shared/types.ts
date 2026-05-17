@@ -17,6 +17,7 @@ export interface Course {
   term?: "Spring" | "Summer" | "Autumn" | "Winter";
   year?: number;
   color?: number;
+  isWaitlisted?: boolean;
 }
 
 export interface Schedule {
@@ -25,13 +26,18 @@ export interface Schedule {
   courses: Record<string, Course>;
 }
 
+export type ThemePreference = "system" | "light" | "dark";
+
 export interface StorageData {
   schedules: Schedule[];
   activeScheduleIndex: number;
+  themePreference: ThemePreference;
 }
 
 export interface Conflict {
   courseA: Course;
   courseB: Course;
   day: string;
+  start: string;
+  end: string;
 }
