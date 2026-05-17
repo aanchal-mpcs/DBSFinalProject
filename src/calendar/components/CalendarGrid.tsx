@@ -30,7 +30,7 @@ export function CalendarGrid({ courses, colorMap, conflictIds, highlightedCourse
 
   const openCourseDetails = (course: Course) => {
     if (!course.detailUrl) return;
-    window.location.href = course.detailUrl;
+    window.open(course.detailUrl, "_blank", "noopener");
   };
 
   const dayLayouts: MeetingLayout[][] = DAYS.map(() => []);
